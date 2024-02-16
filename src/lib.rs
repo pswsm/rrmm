@@ -9,11 +9,20 @@ const WKSHOP_ITEM_SELECTOR: &str = "div.workshopItem > a.ugc";
 const AUTHOR_NAME_SELECTOR: &str =
     "div.workshopItem > div.workshopItemAuthorName > a.workshop_author_link";
 
+#[derive(Debug, PartialEq, Eq)]
 struct Mod {
     author: String,
-    id: usize,
+    id: String,
 }
 
+impl From<(String, String)> for Mod {
+    fn from(value: (String, String)) -> Self {
+        Mod {
+            id: value.1,
+            author: value.0,
+        }
+    }
+}
 fn parse_steam_workshop_url(mod_name: Option<&str>) -> Url {
     match mod_name {
         Some(is_mod_name) => Url::parse_with_params(
