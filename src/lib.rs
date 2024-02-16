@@ -1,6 +1,5 @@
 #![allow(dead_code)]
 use core::panic;
-use std::collections::HashMap;
 
 use reqwest::Url;
 use scraper::{Html, Selector};
@@ -23,6 +22,7 @@ impl From<(String, String)> for Mod {
         }
     }
 }
+
 fn parse_steam_workshop_url(mod_name: Option<&str>) -> Url {
     match mod_name {
         Some(is_mod_name) => Url::parse_with_params(
@@ -34,8 +34,8 @@ fn parse_steam_workshop_url(mod_name: Option<&str>) -> Url {
     }
 }
 
-/// Scrapes the Steam Rimworld workshop for the mod you've searched, or alternativeli shows the recommended ones if no text is provided
-async fn search_workshop(mod_name: Option<&str>) -> HashMap<&str, &str> {
+/// Scrapes the Steam Rimworld workshop for the mod you've searched, or alternatively shows the recommended ones if no text is provided
+async fn search_workshop(mod_name: Option<&str>) -> Vec<Mod> {
     let workshop_item_selector: Selector = match Selector::parse(WKSHOP_ITEM_SELECTOR) {
         Ok(selector) => selector,
         Err(error) => panic!("{}", error),
@@ -63,11 +63,22 @@ async fn search_workshop(mod_name: Option<&str>) -> HashMap<&str, &str> {
     let scraped_authors = html
         .select(&author_name_selector)
         .into_iter()
-        .map(|wkauthor| wkauthor.value())
+        .map(|wkauthor| wkauthor.inner_html().to_owned())
         .collect::<Vec<String>>();
 
-    HashMap::from([("", "")])
+    let mod_vec: Vec<Mod> = scraped_workshop_items
+        .into_iter()
+        .enumerate()
+        .map(|(index, item)| Mod {
+            id: item,
+            author: scraped_authors
+                .get(index)
+                .unwrap_or(&String::from("Test"))
+                .clone(),
+        })
+        .collect();
 
+    mod_vec
     // scraped
     //     .into_iter()
     //     .map(|v| v.value().attr("data-publishedfileid").unwrap().to_string())
@@ -78,18 +89,35 @@ async fn search_workshop(mod_name: Option<&str>) -> HashMap<&str, &str> {
 
 #[cfg(test)]
 mod tests {
-    use crate::search_workshop;
+    use crate::{search_workshop, Mod};
 
     #[tokio::test]
-    async fn test_search_workshop() {
+    async fn test_search_wkshop() {
+        let mod_list = search_workshop(Some("vanilla expanded")).await;
         assert_eq!(
-            search_workshop(Some("vanilla expanded")).await,
-            vec!["AAAAAAA".to_string()]
+            mod_list,
+            vec![Mod::from((String::from("a"), String::from("a")))]
         )
     }
 
+    // #[tokio::test]
+    // async fn test_search_workshop_ids() {
+    //     let (items, _) = search_workshop(Some("vanilla expanded")).await;
+    //     assert_eq!(items, vec!["AAAAAAA".to_string()])
+    // }
+
+    // #[tokio::test]
+    // async fn test_search_workshop_authors() {
+    //     let (_, authors) = search_workshop(Some("vanilla expanded")).await;
+    //     assert_eq!(authors, vec!["AAAAAAA".to_string()])
+    // }
+
     #[tokio::test]
     async fn test_empty_search_workshop() {
-        assert_eq!(search_workshop(None).await, vec!["AAAAAAA".to_string()])
+        let mod_list = search_workshop(None).await;
+        assert_eq!(
+            mod_list,
+            vec![Mod::from((String::from("a"), String::from("a")))]
+        )
     }
 }
